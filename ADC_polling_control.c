@@ -1,7 +1,7 @@
 #include <stdint.h>
 
 typedef struct{
-  volatile unit32_t SR;  //ステータスレジスタ
+  volatile uint32_t SR;  //ステータスレジスタ
   volatile uint32_t CR1;   // コントロールレジスタ1
   volatile uint32_t CR2;   // コントロールレジスタ2
   volatile uint32_t SMPR1; // サンプリング時間レジスタ1
@@ -29,7 +29,7 @@ typedef struct {
 #define ADC1  ((ADC_TypeDef *) 0x40012000)
 
 //周辺クロックの供給
-int main(VOid){
+int main(void){
   RCC->AHB1ENR |= (1 << 0);  //GPIOAのクロック有効化
   RCC->APB2ENR |= (1 << 8);  //ADC1のクロック有効化
 
@@ -42,18 +42,17 @@ int main(VOid){
   ADC1->SQR3 |= 1;        //チャンネル1(PA1)を1番目の測定対象に指定する
 
 //ADCの有効化
-ADC1->CR2 |= (1 << 2);
+  ADC1->CR2 |= (1 << 0);
   while (1){
     //ソフトウェアによる変換(SWSTART)
-    ADC1-> (1 << 30);  //SWSTARTを立てて変換開始
+    ADC1->CR2 |= (1 << 30);  //SWSTARTを立てて変換開始
 
     //ポーリング制御  
-  while ( !(ADC1->SR & (1 << 1))){
-  }
-  //データの読み出しとフラグクリア
-  unit16_t adc_data = ADC->DR;  //データレジスタから値を読み出す
+    while ( !(ADC1->SR & (1 << 1))){
+    }
+    //データの読み出しとフラグクリア
+    uint16_t adc_data = ADC1->DR;  //データレジスタから値を読み出す
   }
 }
-
 
 
