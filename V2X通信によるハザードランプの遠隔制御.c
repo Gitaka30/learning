@@ -18,7 +18,6 @@ void V2X_Init(void){
 	//クロックを入れる
 	RCC-> AHB1ENR |= (1 << 0);	//GPIOENにクロックを供給
 	RCC-> APB1ENR |= (1 << 17);	//USART2ENにクロックを供給	
-
 	
 	//LEDを出力モードにするためにMODER5を出力する
 	GPIOA->MODER &= ~(3 << 10);	//一旦クリア
@@ -30,7 +29,6 @@ void V2X_Init(void){
     	GPIOA->MODER |=  (2 << (2 * 2));  // 10(代替機能)
     	GPIOA->AFR[0] &= ~(0xF << (4 * 2));  // PA2のAFフィールドをクリア
     	GPIOA->AFR[0] |=  (7 << (4 * 3));  // AF7を書き込む
-
 
 	//MODER6,7番ビットをクリアして10(代替機能モード)を書き込む
 	GPIOA->MODER &= ~(3 << (3 * 2));	//一旦クリア
@@ -46,16 +44,13 @@ void V2X_Init(void){
 }
 
 if (cmd == 'H') {
-        GPIOA->ODR |= ( 1 << 5 );	// 【ルート1】光らせる（1にする）
-        
+        GPIOA->ODR |= ( 1 << 5 );	// 【ルート1】光らせる（1にする）      
     } 
     else if (cmd == 'L') {
         GPIOA->ODR &= ~( 1 << 5 );	// 【ルート2】消す（0にする）
-        
     } 
     else if (cmd == 'T') {
         GPIOA->ODR ^= ( 1 << 5 );	// 【ルート3】反転させる 
-        
     } 
     else {
         // 【ルート4】それ以外（何もしない ＆ PCへエラー警告）
