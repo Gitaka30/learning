@@ -1,0 +1,83 @@
+文字列をマイコンで読んでからLEDをONにする
+
+①どのビットを操作するか USART2は17ビット
+クロック供給で電源供給
+RCC->APB1ENR |= ( 1 << 17);
+
+②電源を入れたらGPIOからUSART2の送受信のラインにする
+ピン2とピン3のモードを代替機能モード(Alternate function mode)にする
+MODER2[1:0]を10にする
+MODER3[1:0]を10にする
+
+GPIOA->MODER &= ~(0xF << 4); //PA2,PA3の領域を0000にクリアする
+GPIOA->MODER |= (0xA << 4);  //PA2,PA3の領域に0xAを書き込む　4は16進数で1010
+
+AF領域のAFRL2とAFRL3に入れる
+GPIOA->AFR[0] &= ~(0xFF << 8); //ARFLのAFの領域をクリアする
+GPIOA->AFR[0] |= (0x77 << 8);  //ARFLのAFの領域に01110111を入れる
+
+void usart2_init(void){
+	RCC->APB1ENR |= ( 1 << 17);
+
+	GPIOA->MODER &= ~(0xF << 4); //PA2,PA3の領域を0000にクリアする
+	GPIOA->MODER |= (0xA << 4);  //PA2,PA3の領域に0xAを書き込む　4は16進数で1010
+
+	GPIOA->AFR[0] &= ~(0xFF << 8); //ARFLのAFの領域をクリアする
+	GPIOA->AFR[0] |= (0x77 << 8);  //ARFLのAFの領域に01110111を入れる
+
+	//ボーレート設定(115200bps)　←STM32の内部クロックは16MHzで動くと仮定
+	分周比=16000000Hz/115200bps = 8.6805
+	0,6805 × 16 =10.888 →　11 (0xB) 
+	0x008B	
+
+	USART2->BRR = 0x008B;
+	
+	//USART2を起動し、UE,TE,REビットをONにする
+	USART2->CR1 |= (1 << 13)|(1 << 3)|(1 << 2) //13ビット目のUSART2の電源、3ビット目の送信、2ビット目の受信をON
+}
+//1文字送信関数の定義
+void uart2_patcher(char c){
+	while(!(USART2->SR & (1 << 7)));　//USART2のSRレジスタの第7ビットを見る
+	USART2->DR = c;		//データレジスタに文字を書き込む
+}
+int my_strcmp(char *str1, char *str2){
+	while(*str1 == *str2){
+		//もし文字列の終端(\0)に到達したら完全一致している
+	if(*str1 == '\0'){
+		return 1;
+	}
+
+	str1++;
+	str2++;
+	}
+	return 0;
+}
+
+void uart2_putstr(char *s){
+	//ポインタsが指す文字が\0になるまでループ
+	while(*s != '\0'){
+		uart2_patcher(*s);	//1文字ずつ送信
+		s++;
+	}
+}
+
+int main (void){
+	usart2_init();
+	// 疑似受信バッファ（PCから "led on" と打たれたと仮定）
+    char input_buffer[] = "led on"; 
+
+    while(1) {
+        // もし入力が "led on" だったらLEDを点灯
+        if (my_strcmp(input_buffer, "led on") == 1) {
+            GPIOA->ODR |= (1 << 5);             // 物理LED点灯
+            uart2_putstr(">> LED IS NOW ON!\n"); // PCへの報告
+            input_buffer[0] = '\0';             // バッファクリア
+        } 
+        // もし入力が "led off" だったらLEDを消灯
+        else if (my_strcmp(input_buffer, "led off") == 1) {
+            GPIOA->ODR &= ~(1 << 5);             // 物理LED消灯
+            uart2_putstr(">> LED IS NOW OFF!\n");// PCへの報告
+            input_buffer[0] = '\0';
+        }
+    }
+}

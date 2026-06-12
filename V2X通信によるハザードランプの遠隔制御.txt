@@ -1,0 +1,63 @@
+V2X通信によるハザードランプの遠隔制御
+
+マイコンはNUCLEO-F401RE
+回路図はhttps://www.st.com/resource/en/schematic_pack/mb1136-default-c05_schematic.pdf
+
+V2X通信のためUSBと接続されているPA3ピンを使う
+LEDはPA5ピンを使う
+
+GPIOAのピンのモードを探す
+GPIOAの5番ピンを使う→MODER5[11:10]
+
+PA3の機能はUSART2_RXとして使うのでモードを切り替える
+GPIOAの3番ピンを使う→MODER3[7:6]
+モードを10（代替機能モードにする）
+
+void V2X_Init(void){
+
+	//クロックを入れる
+	RCC-> AHB1ENR |= (1 << 0);	//GPIOENにクロックを供給
+	RCC-> APB1ENR |= (1 << 17);	//USART2ENにクロックを供給	
+
+	
+	//LEDを出力モードにするためにMODER5を出力する
+	GPIOA->MODER &= ~(3 << 10);	//一旦クリア
+	GPIOA->MODER |= (1 << 10);	//01(出力モード)を書き込む
+
+    　　//  PA2 を代替機能に（USART2_TX = AF7）
+    　　// MODERは 2×2 = ? → bits[5,4] 、AFRは 4×2 = ? → bits[9,8]
+  	GPIOA->MODER &= ~(3 << (2 * 2));
+    	GPIOA->MODER |=  (2 << (2 * 2));  // 10(代替機能)
+    	GPIOA->AFR[0] &= ~(0xF << (4 * 2));  // PA2のAFフィールドをクリア
+    	GPIOA->AFR[0] |=  (7 << (4 * 3));  // AF7を書き込む
+
+
+	//MODER6,7番ビットをクリアして10(代替機能モード)を書き込む
+	GPIOA->MODER &= ~(3 << (3 * 2));	//一旦クリア
+	GPIOA->MODER |= (2 << 3 * 2);		//10を書き込む
+
+	//MODER10,11番ビットをクリアしてUSART2(AF7 0111)を書き込む
+	GPIOA->AFR[0] &= ~(0xF << (3 * 4));	//一旦クリア
+	GPIOA->AFR[0] |= (7 << (3 * 4));	//0111を書き込む
+
+ 	// USART2 本体
+   	 USART2->BRR  =0x0683;   // ボーレート → UART_Initで使った値
+    	USART2->CR1 |= (1 << 2 | 3 << 3 |1 << 13);   // RE(bit2), TE(bit3), UE(bit13)
+}
+
+if (cmd == 'H') {
+        GPIOA->ODR |= ( 1 << 5 );	// 【ルート1】光らせる（1にする）
+        
+    } 
+    else if (cmd == 'L') {
+        GPIOA->ODR &= ~( 1 << 5 );	// 【ルート2】消す（0にする）
+        
+    } 
+    else if (cmd == 'T') {
+        GPIOA->ODR ^= ( 1 << 5 );	// 【ルート3】反転させる 
+        
+    } 
+    else {
+        // 【ルート4】それ以外（何もしない ＆ PCへエラー警告）
+        // uart2_putstr(">> ERROR: Unknown Command!\n");
+    }

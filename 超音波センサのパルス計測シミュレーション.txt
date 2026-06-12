@@ -1,0 +1,48 @@
+超音波センサのパルス計測シミュレーション
+
+パルス波を数えたい
+波長を測りたい
+タイマーのカウントをしたい
+
+回路図からPA6をセンサの接続先として利用する
+
+PA6のAlternate functionの代替機能を見てTIM3_CH1を使用するためにAF02に切り替える
+
+RCC->AHB1ENR |= ( 1 << 0 );	//GPIOAのクロックON
+RCC->APB1ENR |= ( 1 << 1 );	//TIM3クロックON
+GPIOA->MODER &= ~( 3 << 12 );	//12/13番ビットに3(11)を入れて00にする
+GPIOA->MODER |= ( 2 << 12 );	//12/13番ビットに2(10)を論理和で入れて10(代替機能)にする
+
+#include<stdint.h>
+
+void Ultrasound_Init(void){
+	RCC->APB1ENR |= ( 1 << 1 );	//GPIOAのTIM3クロックON
+
+	GPIOA->MODER &= ~( 3 << 12 );	//12/13番ビットに3(11)を入れて00にする
+	GPIOA->MODER |= ( 2 << 12 );	//12/13番ビットに2(10)を論理和で入れて10(代替機能)にする
+	
+	GPIOA->AFR[0] &= ~(0xF << 24 );	//24~27番ビットをクリア
+	GPIOA->AFR[0] |= ( 2 << 24 );	//24~27番ビットに2(AF02)を書き込む
+					//AFR[0]←AFRL (Alternate Function Register Low)
+}
+	
+int32_t calclate_distance(uint32_t start_time, uint32_t end_time){	//超音波センサの距離計算
+
+int main(void){
+	Ultrasound_Init();
+	while(1){
+
+	int32_t diff = (int32_t)end_time - (int32_t)start_time;
+
+	if(diff <= 0 || diff > 65535){	//差分が0以下、またはタイマーの16ビット最大値を超えている場合はエラー
+	return -1;	//異常値を検知したら返す
+}
+
+	int32_t distance_mm = diff;
+	return distance_mm;
+}
+
+一般入力モード00 センサー扱い
+一般出力モード01 スイッチ扱い
+代替機能モード10 専門機能へ直通
+アナログ入力モード11 センサー値のアナログ値
